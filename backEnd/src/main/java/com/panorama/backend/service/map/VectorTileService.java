@@ -60,7 +60,8 @@ public class VectorTileService {
     public byte[] getVectorTile(LayerNode layerNode, int z, int x, int y) {
         String tableName = layerNode.getTableName();
         String[] visualizationFieldsList = layerNode.getUsage().get("visualizationField").split(",");
-        return (byte[]) vectorTileMapper.getVectorTile(tableName, z, x, y, visualizationFieldsList);
+        byte[] tile = (byte[]) vectorTileMapper.getVectorTile(tableName, z, x, y, visualizationFieldsList);
+        return tile;
     }
 
     @DynamicNodeData
