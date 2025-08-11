@@ -36,6 +36,11 @@ public class LayerNodeController {
                 .body(layerNodeService.getLayerTree());
     }
 
+    @GetMapping("/test")
+    public ResponseEntity<String> test(){
+        return ResponseEntity.ok("API is working!");
+    }
+
     @PostMapping("/createCategory")
     public ResponseEntity<GeneralResult> createCategory(@RequestBody InfoDTO info) throws IOException {
         GeneralResult result = layerNodeService.createCategory(info);

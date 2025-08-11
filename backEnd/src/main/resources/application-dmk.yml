@@ -4,13 +4,13 @@ server:
 spring:
   data:
     mongodb:
-      database: panoramaTW
+      database: east
       authentication-database: admin
-      uri: mongodb://localhost:27017/panoramaTW
+      uri: mongodb://localhost:27017/east
   datasource:
     default:
       driver-class-name: org.postgresql.Driver
-      url: jdbc:postgresql://localhost:5432/panoramaTW
+      url: jdbc:postgresql://localhost:5432/east
       username: postgres
       password: 123456
   servlet:
@@ -19,9 +19,9 @@ spring:
       max-request-size: 1GB
 
 path:
-  temp: H:\data\nearshore\temp
-  rasterTile: H:\data\nearshore\raster\rasterTile
-  rasterFile: H:\data\nearshore\raster\rasterFile
-  static: H:\data\nearshore\static
-  3DTile: H:\data\nearshore\3DTile
+  temp: E:\data\nearshore\temp
+  rasterTile: E:\data\nearshore\raster\rasterTile
+  rasterFile: E:\data\nearshore\raster\rasterFile
+  static: E:\data\nearshore\static
+  3DTile: E:\data\nearshore\3DTile
 
