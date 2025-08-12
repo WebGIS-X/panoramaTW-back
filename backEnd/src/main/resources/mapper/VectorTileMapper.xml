@@ -96,4 +96,30 @@
         ) FROM ${tableName} t
     </select>
 
+    <!-- 新增：获取所有列，不含几何 -->
+    <select id="getAllColumns" resultType="string">
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE (table_name = #{tableName} OR table_name ILIKE '%' || #{tableName} || '%')
+          AND table_schema = 'public'
+          AND column_name NOT IN ('geom')
+        ORDER BY ordinal_position
+    </select>
+
+    <!-- 新增：分页获取属性数据（限定列名） -->
+    <select id="getAttributes" resultType="map">
+        SELECT
+        <foreach collection="columnsList" item="col" separator=",">
+            ${col}
+        </foreach>
+        FROM "${tableName}"
+        ORDER BY ogc_fid
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 新增：统计总行数 -->
+    <select id="getRowCount" resultType="int">
+        SELECT COUNT(*) FROM "${tableName}"
+    </select>
+
 </mapper>

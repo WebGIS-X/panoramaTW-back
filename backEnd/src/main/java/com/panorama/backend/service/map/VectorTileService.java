@@ -225,6 +225,30 @@ public class VectorTileService {
         }
     }
 
+    // 新增：获取所有列
+    @DynamicNodeData
+    public List<String> getAllColumns(LayerNode layerNode) {
+        return vectorTileMapper.getAllColumns(layerNode.getTableName());
+    }
+
+    // 新增：分页获取属性
+    @DynamicNodeData
+    public List<Map<String, Object>> getAttributes(LayerNode layerNode, List<String> columns, int page, int size) {
+        int offset = Math.max(0, (page - 1) * size);
+        return vectorTileMapper.getAttributes(layerNode.getTableName(), columns, offset, size);
+    }
+
+    // 新增：总数
+    @DynamicNodeData
+    public int getRowCount(LayerNode layerNode) {
+        return vectorTileMapper.getRowCount(layerNode.getTableName());
+    }
+    
+    // 临时：调试用
+    public List<String> findTablesLikePort() {
+        return vectorTileMapper.findTablesLikePort();
+    }
+
     private Map<String, String> getDataSourceMap() {
         Map<String, String> dataSourceMap = new HashMap<>();
         dataSourceMap.put("url", defaultDataSource.getUrl());

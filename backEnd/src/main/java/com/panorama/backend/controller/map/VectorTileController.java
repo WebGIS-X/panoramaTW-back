@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author: DMK
@@ -66,6 +68,64 @@ public class VectorTileController {
                 .headers(headers)
                 .contentType(MediaType.valueOf("application/json"))
                 .body(detailInfo.toString());
+    }
+
+    // 测试接口
+    @GetMapping("/test")
+    public ResponseEntity<String> test() {
+        System.out.println("测试接口被调用了！");
+        return ResponseEntity.ok("VectorTile Controller 工作正常");
+    }
+    
+    // 新增：返回所有列名（不含geom）
+    @GetMapping("/columns/{id}")
+    public ResponseEntity<List<String>> getColumns(@PathVariable String id) {
+        LayerNode layerNode = layerNodeService.getLayerNodeById(id);
+        System.out.println("获取列名 - 图层ID: " + id + ", 表名: " + layerNode.getTableName());
+        System.out.println("LayerNode详细信息: " + layerNode.toString());
+        
+        // 临时调试：查看数据库中实际的表名
+        List<String> portTables = vectorTileService.findTablesLikePort();
+        System.out.println("数据库中包含'port'的表名: " + (portTables != null ? String.join(", ", portTables) : "无"));
+        
+        List<String> cols = vectorTileService.getAllColumns(layerNode);
+        System.out.println("查询到的列名数量: " + (cols != null ? cols.size() : 0));
+        if (cols != null && !cols.isEmpty()) {
+            System.out.println("列名列表: " + String.join(", ", cols));
+        } else {
+            System.out.println("警告：未查询到任何列名！可能表名不存在或无权限访问");
+        }
+        return ResponseEntity.ok(cols);
+    }
+
+    // 新增：分页返回属性数据
+    @PostMapping("/attributes/{id}")
+    public ResponseEntity<List<Map<String, Object>>> getAttributes(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> body
+    ) {
+        LayerNode ln = layerNodeService.getLayerNodeById(id);
+        @SuppressWarnings("unchecked")
+        List<String> columns = (List<String>) body.get("columns");
+        int page = body.get("page") == null ? 1 : (int) body.get("page");
+        int size = body.get("size") == null ? 50 : (int) body.get("size");
+        
+        System.out.println("获取属性数据 - 表名: " + ln.getTableName() + ", 列数: " + (columns != null ? columns.size() : 0) + 
+                          ", 页码: " + page + ", 每页: " + size);
+        if (columns != null) {
+            System.out.println("请求的列: " + String.join(", ", columns));
+        }
+        
+        List<Map<String, Object>> rows = vectorTileService.getAttributes(ln, columns, page, size);
+        System.out.println("返回数据行数: " + (rows != null ? rows.size() : 0));
+        return ResponseEntity.ok(rows);
+    }
+
+    // 新增：总数
+    @GetMapping("/rowCount/{id}")
+    public ResponseEntity<Integer> getRowCount(@PathVariable String id) {
+        LayerNode ln = layerNodeService.getLayerNodeById(id);
+        return ResponseEntity.ok(vectorTileService.getRowCount(ln));
     }
 
     @PostMapping("/upload/json")
