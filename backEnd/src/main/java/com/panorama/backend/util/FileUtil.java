@@ -50,7 +50,15 @@ public class FileUtil {
         File file = new File(path + File.separator + originalFilename);
 
         // 将 multipartFile 的内容转存到 file 中
-        multipartFile.transferTo(file);
+        // 使用 InputStream 而不是 transferTo，避免临时文件问题
+        try (java.io.InputStream inputStream = multipartFile.getInputStream();
+             java.io.FileOutputStream outputStream = new java.io.FileOutputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        }
 
         return file;
     }

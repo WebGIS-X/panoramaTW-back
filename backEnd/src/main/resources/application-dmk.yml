@@ -1,5 +1,7 @@
 server:
   port: 8765
+  tomcat:
+    basedir: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\tomcat
 
 spring:
   data:
@@ -12,16 +14,16 @@ spring:
       driver-class-name: org.postgresql.Driver
       url: jdbc:postgresql://localhost:5432/panoramaTW
       username: postgres
-      password: 123456
+      password: 040322
   servlet:
     multipart:
       max-file-size: 1GB
       max-request-size: 1GB
+      location: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\temp
 
 path:
-  temp: H:\data\nearshore\temp
-  rasterTile: H:\data\nearshore\raster\rasterTile
-  rasterFile: H:\data\nearshore\raster\rasterFile
-  static: H:\data\nearshore\static
-  3DTile: H:\data\nearshore\3DTile
-
+  temp: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\temp
+  rasterTile: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\raster\rasterTile
+  rasterFile: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\raster\rasterFile
+  static: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\static
+  3DTile: C:\Users\yxy\Desktop\WebGIS\panoramaTW\panoramaTW_pro\data\3DTile

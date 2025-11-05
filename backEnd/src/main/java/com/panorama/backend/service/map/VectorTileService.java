@@ -49,11 +49,16 @@ public class VectorTileService {
 
     private LayerNodeService layerNodeService;
 
+    private com.panorama.backend.service.datasource.DataSourceHelperService dataSourceHelperService;
+
     @Autowired
-    public void setVectorTileMapper(VectorTileMapper vectorTileMapper, LayerNodeService layerNodeService, DefaultDataSource defaultDataSource) {
+    public void setVectorTileMapper(VectorTileMapper vectorTileMapper, LayerNodeService layerNodeService,
+            DefaultDataSource defaultDataSource,
+            com.panorama.backend.service.datasource.DataSourceHelperService dataSourceHelperService) {
         this.vectorTileMapper = vectorTileMapper;
         this.layerNodeService = layerNodeService;
         this.defaultDataSource = defaultDataSource;
+        this.dataSourceHelperService = dataSourceHelperService;
     }
 
     @DynamicNodeData
@@ -71,36 +76,42 @@ public class VectorTileService {
     }
 
     @DynamicNodeData
-    public GeneralResult uploadJSONLayer(LayerNode parentNode, MultipartFile multipartFile, InfoDTO infoDTO) throws IOException {
+    public GeneralResult uploadJSONLayer(LayerNode parentNode, MultipartFile multipartFile, InfoDTO infoDTO)
+            throws IOException {
 
-        //M2F
+        // M2F
         File file = FileUtil.convertMultipartFileToFile(multipartFile, temp);
 
         try {
-            //解析json
+            // 解析json
             JsonNode features = JsonUtil.parseJson(file).get("features");
-            //建表，指定表名、字段名、字段类型
+            // 建表，指定表名、字段名、字段类型
             String tableName = infoDTO.getTableName();
             String layerName = infoDTO.getLayerName();
 
             int sameCount = vectorTileMapper.getSameCount(tableName);
             String uniqueTableName;
-            if (sameCount == 0){
+            if (sameCount == 0) {
                 uniqueTableName = tableName;
-            }else {
+            } else {
                 uniqueTableName = tableName + "_" + sameCount;
             }
 
-            vectorTileMapper.createTable(uniqueTableName, infoDTO.getPropertyType(), infoDTO.getUsage().get("type"), Integer.parseInt(infoDTO.getUsage().get("srid")));
-            //插入每个要素
+            vectorTileMapper.createTable(uniqueTableName, infoDTO.getPropertyType(), infoDTO.getUsage().get("type"),
+                    Integer.parseInt(infoDTO.getUsage().get("srid")));
+            // 插入每个要素
             for (JsonNode feature : features) {
                 String geometry = feature.get("geometry").toString();
-                vectorTileMapper.insertGeoJsonFeature(uniqueTableName, geometry, JsonUtil.jsonToMap(feature.get("properties")));
+                vectorTileMapper.insertGeoJsonFeature(uniqueTableName, geometry,
+                        JsonUtil.jsonToMap(feature.get("properties")));
             }
 
             String path = layerNodeService.getNodePath(parentNode);
 
-            Map<String, String> dataSourceMap = getDataSourceMap();
+            // ✨ 使用辅助服务解析目标数据源
+            Map<String, String> dataSourceMap = dataSourceHelperService.resolveTargetDataSource(
+                    parentNode,
+                    infoDTO.getTargetDataSourceId());
 
             LayerNode newLayerNode = LayerNode.builder()
                     .tableName(uniqueTableName).layerName(layerName)
@@ -111,9 +122,10 @@ public class VectorTileService {
             layerNodeService.saveLayerNode(newLayerNode);
             FileUtil.deleteDirectory(Path.of(file.getParent()));
 
-            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message("upload json successfully").build();
+            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message("upload json successfully")
+                    .build();
 
-        }catch (Exception e){
+        } catch (Exception e) {
             vectorTileMapper.deleteTable(infoDTO.getTableName());
             FileUtil.deleteDirectory(Path.of(file.getParent()));
             return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("invalid json").build();
@@ -122,20 +134,20 @@ public class VectorTileService {
 
     public GeneralResult parseShpLayer(MultipartFile multipartFile) throws IOException {
 
-        //M2F
+        // M2F
         File zipFile = FileUtil.convertMultipartFileToFile(multipartFile, temp);
         String path = zipFile.getParent();
-        //解压
+        // 解压
         List<String> list = FileUtil.unZipFiles(zipFile, path);
         boolean result = zipFile.delete();
         if (!result) {
             log.error("failed to delete zip file");
         }
-        //找到shp文件
+        // 找到shp文件
         String shapefilePath = FileUtil.findFileWithExtension(list, ".shp");
-        if (shapefilePath.isEmpty()){
+        if (shapefilePath.isEmpty()) {
             return GeneralResult.builder().status("error").message("shapefile not found").build();
-        }else {
+        } else {
             log.info("shp路径为：{}", shapefilePath);
             try {
                 Map<String, Object> info = new HashMap<>();
@@ -147,39 +159,44 @@ public class VectorTileService {
                 info.put("path", path);
                 return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message(info).build();
             } catch (Exception e) {
-                return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to parse shp").build();
+                return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to parse shp")
+                        .build();
             }
         }
     }
 
     @DynamicNodeData
-    public GeneralResult storeShpLayer(LayerNode parentNode, String path, InfoDTO infoDTO) throws IOException, InterruptedException, FactoryException {
+    public GeneralResult storeShpLayer(LayerNode parentNode, String path, InfoDTO infoDTO)
+            throws IOException, InterruptedException, FactoryException {
         String shpPath = FileUtil.findFileWithExtension(path, ".shp");
         String prjPath = FileUtil.findFileWithExtension(path, ".prj");
 
-        //获取srid，默认为4326
+        // 获取srid，默认为4326
         String wkt;
         int srid;
-        if (prjPath != null){
+        if (prjPath != null) {
             wkt = new String(Files.readAllBytes(Paths.get(prjPath)));
             CoordinateReferenceSystem crs = CRS.parseWKT(wkt);
             // 获取SRID
             srid = CRS.lookupEpsgCode(crs, false);
-        }else {
+        } else {
             srid = 4326;
         }
 
         String tableName = infoDTO.getTableName();
         int sameCount = vectorTileMapper.getSameCount(tableName);
         String uniqueTableName;
-        if (sameCount == 0){
+        if (sameCount == 0) {
             uniqueTableName = tableName;
-        }else {
+        } else {
             uniqueTableName = tableName + "_" + sameCount;
         }
 
-        if (ProcessUtil.shp2pgProcess(shpPath, uniqueTableName, defaultDataSource, srid)){
-            Map<String, String> dataSourceMap = getDataSourceMap();
+        if (ProcessUtil.shp2pgProcess(shpPath, uniqueTableName, defaultDataSource, srid)) {
+            // ✨ 使用辅助服务解析目标数据源
+            Map<String, String> dataSourceMap = dataSourceHelperService.resolveTargetDataSource(
+                    parentNode,
+                    infoDTO.getTargetDataSourceId());
             Map<String, String> usage = infoDTO.getUsage();
             usage.put("srid", String.valueOf(srid));
             LayerNode newLayerNode = LayerNode.builder()
@@ -189,36 +206,42 @@ public class VectorTileService {
                     .build();
             layerNodeService.saveLayerNode(newLayerNode);
             FileUtil.deleteDirectory(Path.of(path));
-            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message("store shp successfully").build();
-        }else {
+            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message("store shp successfully")
+                    .build();
+        } else {
             return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to store shp").build();
         }
     }
 
     @DynamicNodeData
-    public GeneralResult deleteVectorLayer(LayerNode layerNode){
-        try{
+    public GeneralResult deleteVectorLayer(LayerNode layerNode) {
+        try {
             vectorTileMapper.deleteTable(layerNode.getTableName());
             layerNodeService.deleteLayerNode(layerNode);
-            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message("delete vector layer successfully").build();
-        }catch (Exception e){
-            return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to delete vector layer").build();
+            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS)
+                    .message("delete vector layer successfully").build();
+        } catch (Exception e) {
+            return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to delete vector layer")
+                    .build();
         }
     }
 
     @DynamicNodeData
-    public GeneralResult updateVectorLayer(LayerNode layerNode, InfoDTO infoDTO){
-        if (layerNodeService.updateLayer(layerNode, infoDTO)){
-            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message("update vector layer successfully").build();
-        }else{
-            return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to update vector layer").build();
+    public GeneralResult updateVectorLayer(LayerNode layerNode, InfoDTO infoDTO) {
+        if (layerNodeService.updateLayer(layerNode, infoDTO)) {
+            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS)
+                    .message("update vector layer successfully").build();
+        } else {
+            return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to update vector layer")
+                    .build();
         }
     }
 
     @DynamicNodeData
     public GeneralResult getGeojsonByTableName(LayerNode layerNode, String tableName) {
         try {
-            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS).message(vectorTileMapper.getGeojsonByTableName(tableName)).build();
+            return GeneralResult.builder().status(GenerateResultStatus.SUCCESS)
+                    .message(vectorTileMapper.getGeojsonByTableName(tableName)).build();
         } catch (Exception e) {
             return GeneralResult.builder().status(GenerateResultStatus.ERROR).message("failed to get geojson").build();
         }

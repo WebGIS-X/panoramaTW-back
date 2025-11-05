@@ -17,4 +17,5 @@ import java.util.Map;
 public class InfoDTO extends BaseDTO {
     String parent_id;
     Map<String, Object> propertyType;
+    String targetDataSourceId; // 目标数据源ID（可选）
 }

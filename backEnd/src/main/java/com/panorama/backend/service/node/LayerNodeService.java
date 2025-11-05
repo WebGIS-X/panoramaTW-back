@@ -26,36 +26,36 @@ public class LayerNodeService {
         this.layerNodeRepo = layerNodeRepo;
     }
 
-    public LayerNode getLayerNodeById(String id){
+    public LayerNode getLayerNodeById(String id) {
         return layerNodeRepo.findLayerNodeById(id);
     }
 
-    public LayerNode getLayerNodeByTableName(String tableName){
+    public LayerNode getLayerNodeByTableName(String tableName) {
         return layerNodeRepo.findLayerNodeByTableName(tableName);
     }
 
-    public void saveLayerNode(LayerNode layerNode){
+    public void saveLayerNode(LayerNode layerNode) {
         layerNodeRepo.save(layerNode);
     }
 
-    public void deleteLayerNode(LayerNode layerNode){
+    public void deleteLayerNode(LayerNode layerNode) {
         layerNodeRepo.delete(layerNode);
     }
 
-    public String getNodePath(LayerNode layerNode){
+    public String getNodePath(LayerNode layerNode) {
         return layerNode.getPath() + layerNode.getTableName() + ",";
     }
 
-    private List<LayerNode> getChildren(LayerNode layerNode){
+    private List<LayerNode> getChildren(LayerNode layerNode) {
         return layerNodeRepo.findLayerNodesByPathStartingWith(getNodePath(layerNode));
     }
 
-    public LayerNodeDTO getLayerTree(){
+    public LayerNodeDTO getLayerTree() {
         LayerNode rootNode = layerNodeRepo.findLayerNodeByTableName("layerNode");
         return buildTree(rootNode);
     }
 
-    private LayerNodeDTO buildTree(LayerNode layerNode){
+    private LayerNodeDTO buildTree(LayerNode layerNode) {
         LayerNodeDTO layerNodeDTO = LayerNodeDTO.builder()
                 .tableName(layerNode.getTableName())
                 .layerName(layerNode.getLayerName())
@@ -64,14 +64,14 @@ public class LayerNodeService {
                 .build();
         List<LayerNode> children = layerNodeRepo.findLayerNodesByPath(getNodePath(layerNode));
 
-        for(LayerNode child : children){
+        for (LayerNode child : children) {
             layerNodeDTO.getChildren().add(buildTree(child));
         }
 
         return layerNodeDTO;
     }
 
-    public GeneralResult createCategory(InfoDTO infoDTO){
+    public GeneralResult createCategory(InfoDTO infoDTO) {
         try {
             LayerNode parentNode = layerNodeRepo.findLayerNodeById(infoDTO.getParent_id());
             LayerNode newLayerNode = LayerNode.builder()
@@ -80,62 +80,65 @@ public class LayerNodeService {
                     .build();
             saveLayerNode(newLayerNode);
             return GeneralResult.builder().status("success").message("create category successfully").build();
-        }catch (Exception e){
+        } catch (Exception e) {
             return GeneralResult.builder().status("error").message("failed to create category").build();
         }
     }
 
-    public GeneralResult updateCategory(InfoDTO infoDTO){
-        try{
+    public GeneralResult updateCategory(InfoDTO infoDTO) {
+        try {
             LayerNode layerNode = layerNodeRepo.findLayerNodeById(infoDTO.getId());
             List<LayerNode> children = getChildren(layerNode);
 
-            //重命名
+            // 重命名
             String oldNodePath = getNodePath(layerNode);
             String newLayerName = infoDTO.getLayerName();
             String newParentId = infoDTO.getParent_id();
 
-            //重命名
-            if (newLayerName != null && !newLayerName.isEmpty()){
+            // 重命名
+            if (newLayerName != null && !newLayerName.isEmpty()) {
                 layerNode.setLayerName(infoDTO.getLayerName());
             }
 
-            //移动分类
-            if (newParentId != null && !newParentId.isEmpty()){
+            // 移动分类
+            if (newParentId != null && !newParentId.isEmpty()) {
                 LayerNode newParentNode = layerNodeRepo.findLayerNodeById(newParentId);
                 layerNode.setPath(getNodePath(newParentNode));
             }
 
-            for (LayerNode child : children){
+            for (LayerNode child : children) {
                 child.setPath(child.getPath().replace(oldNodePath, getNodePath(layerNode)));
                 layerNodeRepo.save(child);
             }
 
             layerNodeRepo.save(layerNode);
             return GeneralResult.builder().status("success").message("update category successfully").build();
-        }catch (Exception e){
+        } catch (Exception e) {
             return GeneralResult.builder().status("error").message("failed to update category").build();
         }
     }
 
-    public boolean updateLayer(LayerNode layerNode, InfoDTO infoDTO){
-        try{
+    public boolean updateLayer(LayerNode layerNode, InfoDTO infoDTO) {
+        try {
             String parent_id = infoDTO.getParent_id();
-            if (parent_id != null && !parent_id.isEmpty()){
+            if (parent_id != null && !parent_id.isEmpty()) {
                 LayerNode parentNode = getLayerNodeById(parent_id);
                 layerNode.setPath(getNodePath(parentNode));
             }
             String layerName = infoDTO.getLayerName();
-            if (layerName != null && !layerName.isEmpty()){
+            if (layerName != null && !layerName.isEmpty()) {
                 layerNode.setLayerName(layerName);
             }
             Map<String, String> usage = infoDTO.getUsage();
-            if (usage != null){
+            if (usage != null) {
+                // 直接替换 usage
+                // 前端会发送完整的 usage（包含系统字段 + 用户字段）
+                // 这样可以正确处理删除和修改 key 的操作
                 layerNode.setUsage(usage);
             }
             saveLayerNode(layerNode);
             return true;
-        }catch (Exception e){
+        } catch (Exception e) {
             return false;
         }
     }

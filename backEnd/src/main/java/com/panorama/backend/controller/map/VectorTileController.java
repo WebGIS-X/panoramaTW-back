@@ -7,6 +7,7 @@ import com.panorama.backend.service.map.VectorTileService;
 import com.panorama.backend.service.node.LayerNodeService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.opengis.referencing.FactoryException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -38,24 +39,31 @@ public class VectorTileController {
 
     @GetMapping("/getMVT/{id}/{z}/{x}/{y}")
     public ResponseEntity<byte[]> getVectorTile(
-            @PathVariable String id,@PathVariable int z, @PathVariable int x, @PathVariable int y) {
+            @PathVariable String id, @PathVariable int z, @PathVariable int x, @PathVariable int y) {
+        try {
+            LayerNode layerNode = layerNodeService.getLayerNodeById(id);
+            if (layerNode == null) {
+                return ResponseEntity.noContent().build();
+            }
 
-        LayerNode layerNode = layerNodeService.getLayerNodeById(id);
-
-        byte[] tileData = vectorTileService.getVectorTile(layerNode, z, x, y);
-        if (tileData == null || tileData.length == 0) {
+            byte[] tileData = vectorTileService.getVectorTile(layerNode, z, x, y);
+            if (tileData == null || tileData.length == 0) {
+                return ResponseEntity.noContent().build();
+            }
+            HttpHeaders headers = new HttpHeaders();
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.valueOf("application/vnd.mapbox-vector-tile"))
+                    .contentLength(tileData.length)
+                    .body(tileData);
+        } catch (Exception e) {
+            // 记录错误日志，但返回 204 而不是 500
             return ResponseEntity.noContent().build();
         }
-        HttpHeaders headers = new HttpHeaders();
-        return ResponseEntity.ok()
-                .headers(headers)
-                .contentType(MediaType.valueOf("application/vnd.mapbox-vector-tile"))
-                .contentLength(tileData.length)
-                .body(tileData);
     }
 
     @GetMapping("/getDetailInfo/{id}/{ogc_fid}")
-    public ResponseEntity<String> getDetailInfo(@PathVariable String id, @PathVariable int ogc_fid){
+    public ResponseEntity<String> getDetailInfo(@PathVariable String id, @PathVariable int ogc_fid) {
 
         LayerNode layerNode = layerNodeService.getLayerNodeById(id);
 
@@ -69,8 +77,19 @@ public class VectorTileController {
     }
 
     @PostMapping("/upload/json")
-    public ResponseEntity<GeneralResult> uploadVectorLayer(@RequestPart("file") MultipartFile file, @RequestPart("info") InfoDTO info) throws IOException {
-        LayerNode parentNode = layerNodeService.getLayerNodeById(info.getParent_id());
+    public ResponseEntity<GeneralResult> uploadVectorLayer(@RequestPart("file") MultipartFile file,
+            @RequestPart("info") String infoJson) throws IOException {
+        // 手动解析 JSON 字符串为 InfoDTO 对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        InfoDTO info = objectMapper.readValue(infoJson, InfoDTO.class);
+
+        LayerNode parentNode;
+        if (info.getParent_id() == null || info.getParent_id().isEmpty()) {
+            // 如果没有提供 parent_id，使用根节点
+            parentNode = layerNodeService.getLayerNodeByTableName("layerNode");
+        } else {
+            parentNode = layerNodeService.getLayerNodeById(info.getParent_id());
+        }
         GeneralResult result = vectorTileService.uploadJSONLayer(parentNode, file, info);
         HttpHeaders headers = new HttpHeaders();
         return ResponseEntity.ok().headers(headers)
@@ -88,8 +107,19 @@ public class VectorTileController {
     }
 
     @PostMapping("/upload/shp/store")
-    public ResponseEntity<GeneralResult> storeShpLayer(@RequestPart("path") String path, @RequestPart("info") InfoDTO info) throws IOException, InterruptedException, FactoryException {
-        LayerNode parentNode = layerNodeService.getLayerNodeById(info.getParent_id());
+    public ResponseEntity<GeneralResult> storeShpLayer(@RequestPart("path") String path,
+            @RequestPart("info") String infoJson) throws IOException, InterruptedException, FactoryException {
+        // 手动解析 JSON 字符串为 InfoDTO 对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        InfoDTO info = objectMapper.readValue(infoJson, InfoDTO.class);
+
+        LayerNode parentNode;
+        if (info.getParent_id() == null || info.getParent_id().isEmpty()) {
+            // 如果没有提供 parent_id，使用根节点
+            parentNode = layerNodeService.getLayerNodeByTableName("layerNode");
+        } else {
+            parentNode = layerNodeService.getLayerNodeById(info.getParent_id());
+        }
         GeneralResult result = vectorTileService.storeShpLayer(parentNode, path, info);
         HttpHeaders headers = new HttpHeaders();
         return ResponseEntity.ok().headers(headers)

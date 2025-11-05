@@ -29,11 +29,13 @@ public class FileCleanupService {
 
     @Scheduled(fixedRate = 3600000) // 每小时执行一次
     public void cleanUpOldFiles() {
+        log.info("定时清理任务执行中...");
         File directory = new File(temp);
         if (directory.exists() && directory.isDirectory()) {
             // 遍历目录中的所有子文件夹和文件
             deleteOldFiles(directory);
         }
+        log.info("定时清理任务完成");
     }
 
     private void deleteOldFiles(File directory) {
@@ -74,4 +76,3 @@ public class FileCleanupService {
         }
     }
 }
-
